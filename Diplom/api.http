@@ -1,0 +1,98 @@
+# =========================
+# GLOBAL VARIABLES (PyCharm)
+# =========================
+# Если переменные не выставились автоматически — можешь временно вписать руками:
+# @access_token=PASTE_TOKEN_HERE
+# @session_id=1
+# @session_exercise_id=1
+
+@access_token=
+@session_id= 1
+@session_exercise_id= 5
+
+# =========================
+# 0) RUN ORDER (важно)
+# =========================
+# 1) Register (если юзер уже есть — можно пропустить)
+# 2) Obtain JWT token (он сохранит access_token)
+# 3) Dashboard (authorized) — проверка что токен работает
+# 4) Start workout (save session_id) — создаст сессию и сохранит session_id
+# 5) Get session — посмотреть session_exercise_id (если список пустой — добавь SessionExercise через админку)
+# 6) Add set — добавит подход
+# 7) Dashboard (should change volume) — проверка статистики
+
+
+### Register
+POST http://127.0.0.1:8000/api/auth/register/
+Content-Type: application/json
+
+{
+  "username": "alex",
+  "password": "123456",
+  "name": "Alex",
+  "email": "alex@mail.com"
+}
+
+###
+
+### Obtain JWT token  (СНАЧАЛА ЗАПУСТИ ЭТОТ)
+POST http://127.0.0.1:8000/api/auth/token/
+Content-Type: application/json
+
+{
+  "username": "alex",
+  "password": "123456"
+}
+
+> {%
+// сохраняем access token в переменную
+client.global.set("access_token", response.body.access);
+%}
+
+###
+
+### Dashboard (authorized)  (ПРОВЕРКА ТОКЕНА)
+GET http://127.0.0.1:8000/api/dashboard/
+Authorization: Bearer {{access_token}}
+
+###
+
+### Start workout  (просто старт без сохранения session_id — оставляю как было)
+POST http://127.0.0.1:8000/api/workout/start/
+Authorization: Bearer {{access_token}}
+
+###
+
+### Start workout (save session_id)  (РЕКОМЕНДУЮ ИСПОЛЬЗОВАТЬ ЭТОТ)
+POST http://127.0.0.1:8000/api/workout/start/
+Authorization: Bearer {{access_token}}
+
+> {%
+client.global.set("session_id", response.body.session_id);
+%}
+
+###
+
+### Get session (see session_exercise_id)
+# Если PyCharm ругается на {{session_id}}, значит он не сохранился — впиши @session_id=1 вверху файла
+GET http://127.0.0.1:8000/api/sessions/{{session_id}}/
+Authorization: Bearer {{access_token}}
+
+###
+
+### Add set (ВАЖНО: поставь реальный session_exercise_id из ответа Get session или админки)
+# Если PyCharm ругается на {{session_exercise_id}}, впиши @session_exercise_id=ЧИСЛО вверху файла
+POST http://127.0.0.1:8000/api/sessions/{{session_id}}/exercises/{{session_exercise_id}}/sets/
+Authorization: Bearer {{access_token}}
+Content-Type: application/json
+
+{
+  "reps": 10,
+  "weight": 50
+}
+
+###
+
+### Dashboard (should change volume)
+GET http://127.0.0.1:8000/api/dashboard/
+Authorization: Bearer {{access_token}}
