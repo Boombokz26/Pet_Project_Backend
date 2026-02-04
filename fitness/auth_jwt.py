@@ -1,39 +1,32 @@
-# app/auth_jwt.py
 import jwt
-from dataclasses import dataclass
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
 from django.conf import settings
 from rest_framework.authentication import BaseAuthentication
 from rest_framework.exceptions import AuthenticationFailed
+
 from .models import Users
 
 
-ACCESS_MINUTES = 30
-REFRESH_DAYS = 7
+def _utcnow():
+    return datetime.utcnow()
 
 
-def _now():
-    return datetime.now(timezone.utc)
-
-
-def make_access_token(user: Users) -> str:
+def create_access_token(user_id: int) -> str:
     payload = {
         "type": "access",
-        "user_id": user.id,
-        "email": user.email,
-        "exp": _now() + timedelta(minutes=ACCESS_MINUTES),
-        "iat": _now(),
+        "user_id": user_id,
+        "exp": _utcnow() + timedelta(minutes=30),
+        "iat": _utcnow(),
     }
     return jwt.encode(payload, settings.SECRET_KEY, algorithm="HS256")
 
 
-def make_refresh_token(user: Users) -> str:
+def create_refresh_token(user_id: int) -> str:
     payload = {
         "type": "refresh",
-        "user_id": user.id,
-        "email": user.email,
-        "exp": _now() + timedelta(days=REFRESH_DAYS),
-        "iat": _now(),
+        "user_id": user_id,
+        "exp": _utcnow() + timedelta(days=14),
+        "iat": _utcnow(),
     }
     return jwt.encode(payload, settings.SECRET_KEY, algorithm="HS256")
 
@@ -47,14 +40,9 @@ def decode_token(token: str) -> dict:
         raise AuthenticationFailed("Invalid token")
 
 
-@dataclass
-class SimpleUser:
-    id: int
-    email: str
-    is_authenticated: bool = True
-
-
 class UsersJWTAuthentication(BaseAuthentication):
+
+
     def authenticate(self, request):
         auth = request.headers.get("Authorization", "")
         if not auth.startswith("Bearer "):
@@ -62,16 +50,13 @@ class UsersJWTAuthentication(BaseAuthentication):
 
         token = auth.split(" ", 1)[1].strip()
         payload = decode_token(token)
+
         if payload.get("type") != "access":
-            raise AuthenticationFailed("Invalid token type")
+            raise AuthenticationFailed("Access token required")
 
         user_id = payload.get("user_id")
-        email = payload.get("email")
-        if not user_id:
-            raise AuthenticationFailed("Invalid token payload")
-
-        # опционально проверим, что пользователь существует
-        if not Users.objects.filter(id=user_id).exists():
+        user = Users.objects.filter(id=user_id).first()
+        if not user:
             raise AuthenticationFailed("User not found")
 
-        return (SimpleUser(id=user_id, email=email), None)
+        return (user, None)

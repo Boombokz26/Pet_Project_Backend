@@ -75,8 +75,7 @@ class WorkoutSession(models.Model):
         db_table = "workoutsession"
 
 
-# ⚠️ В SQL тут составной PK (plan_id, exercise_id).
-# В Django делаем обычную таблицу с id + unique_together
+
 class PlanExercise(models.Model):
     id = models.AutoField(primary_key=True)
     plan = models.ForeignKey(WorkoutPlan, on_delete=models.CASCADE, db_column="plan_id")
@@ -102,8 +101,7 @@ class SessionExercise(models.Model):
         db_table = "sessionexercise"
 
 
-# ⚠️ В SQL тут составной PK (exercise_id, equipment_id).
-# В Django делаем id + unique_together
+
 class ExerciseEquipment(models.Model):
     id = models.AutoField(primary_key=True)
     exercise = models.ForeignKey(Exercises, on_delete=models.CASCADE, db_column="exercise_id")
