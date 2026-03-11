@@ -1,18 +1,16 @@
 from django.contrib import admin
 from .models import (
-    Users, Categories, Goals, Exercises, Equipment,
-    WorkoutPlan, WorkoutSession, PlanExercise,
-    SessionExercise, ExerciseEquipment, SessionExerciseSets
+    Users, Categories, Goals, Exercises, ExercisesGoals
 )
+from django.contrib import admin
+
+
 
 admin.site.register(Users)
-admin.site.register(Categories)
 admin.site.register(Goals)
 admin.site.register(Exercises)
-admin.site.register(Equipment)
-admin.site.register(WorkoutPlan)
-admin.site.register(WorkoutSession)
-admin.site.register(PlanExercise)
-admin.site.register(SessionExercise)
-admin.site.register(ExerciseEquipment)
-admin.site.register(SessionExerciseSets)
+admin.site.register(ExercisesGoals)
+
+@admin.register(Categories)
+class CategoriesAdmin(admin.ModelAdmin):
+    list_display = ("category_id", "name", "description")
