@@ -37,13 +37,29 @@ class UserWeightHistory(models.Model):
 class WorkoutPlan(models.Model):
     plan_id = models.AutoField(primary_key=True)
     name = models.CharField(max_length=255)
-    description = models.CharField(max_length=255)
-    created_at = models.DateField()
-    is_active = models.BooleanField(default=True)  # TINYINT
+    description = models.CharField(max_length=255,blank=True,null=True)
+    created_at = models.DateField(null=True, blank=True)
+    is_active = models.BooleanField(default=False)  # TINYINT
+
     User_id = models.ForeignKey(
         Users,
         on_delete=models.CASCADE,
-        db_column="User_id"
+        db_column="User_id",
+        null=True,
+        blank=True
+    )
+
+    exercise = models.ManyToManyField(
+        "Exercises",
+        through="PlanExercise",
+        related_name="plans"
+    )
+
+    goal = models.ForeignKey(
+        "Goals",
+        on_delete=models.SET_NULL,
+        null=True,
+        db_column="goal_id"
     )
 
     class Meta:
@@ -70,9 +86,11 @@ class Exercises(models.Model):
     category_id = models.ForeignKey(
         "Categories",
         on_delete=models.CASCADE,
-        db_column="category_id"
+        db_column="category_id",
+        null=True,
+        blank=True,
     )
-    DifficultyLevel = models.CharField(max_length=30)
+    DifficultyLevel = models.CharField(max_length=30,null=True, blank=True)
 
     def __str__(self):
         return f"{self.exercise_id}- {self.User_id} - {self.name}"
@@ -152,7 +170,8 @@ class PlanExercise(models.Model):
         on_delete=models.CASCADE,
         db_column="exercise_id"
     )
-    day_of_week = models.CharField(max_length=30)
+
+    day_of_week = models.CharField(max_length=30,null=True,blank=True)
     sets = models.IntegerField()
     reps = models.IntegerField()
     target_weight = models.DecimalField(max_digits=10, decimal_places=2)
@@ -188,6 +207,7 @@ class SessionExercise(models.Model):
     )
     notes = models.CharField(max_length=255)
     session_exercise_id = models.AutoField(primary_key=True)
+    is_completed = models.BooleanField(default=False)
 
     class Meta:
         db_table = "SessionExercise"
@@ -204,6 +224,7 @@ class SessionExercisesSets(models.Model):
     set_number = models.IntegerField()
     reps = models.IntegerField()
     weight = models.DecimalField(max_digits=10, decimal_places=2)
+    is_completed = models.BooleanField(default=False)
 
     class Meta:
         db_table = "SessionExercisesSets"

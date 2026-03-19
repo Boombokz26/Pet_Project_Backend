@@ -5,58 +5,60 @@ from . import views
 from .views import (
     register,
     login,
+    refresh_token,
+
     get_profile,
     update_profile,
 
-    start_workout_session,
+    start_workout_from_plan,
     finish_workout_session,
-    add_exercise_to_session,
-    add_set_to_exercise,
+    complete_set,
+    uncomplete_set,
 
-    exercise_progress,
+    # exercise_progress,
     workout_stats,
     weight_progress,
 
     ExerciseViewSet,
+    # WeightHistoryViewSet,
     WorkoutPlanViewSet,
-    WeightHistoryViewSet, save_workout, refresh_token
+    # save_workout
 )
 
 router = DefaultRouter()
-
 router.register(r'exercises', ExerciseViewSet, basename='exercises')
-router.register(r'workout-plans', WorkoutPlanViewSet, basename='workout-plans')
-router.register(r'weight-history', WeightHistoryViewSet, basename='weight-history')
-
+# router.register(r'weight-history', WeightHistoryViewSet, basename='weight-history')
+router.register(r'plans', WorkoutPlanViewSet, basename='plans')
 
 urlpatterns = [
 
     # AUTH
     path("register/", register),
     path("login/", login),
-
     path("token/refresh/", refresh_token),
 
     # PROFILE
     path("profile/", get_profile),
     path("profile/update/", update_profile),
 
-    # WORKOUT SESSION
-    path("workout/start/", start_workout_session),
+    # 🔥 WORKOUT FLOW (НОВЫЙ)
+    path("workout/start/<int:plan_id>/", start_workout_from_plan),
     path("workout/finish/<int:session_id>/", finish_workout_session),
-    path("workout/add-exercise/", add_exercise_to_session),
-    path("workout/add-set/", add_set_to_exercise),
 
-    # ANALYTICS
-    path("exercise-progress/<int:exercise_id>/", exercise_progress),
+    # CHECKLIST
+    path("workout/set/complete/<int:set_id>/", complete_set),
+    path("workout/set/uncomplete/<int:set_id>/", uncomplete_set),
+
+    # path("exercise-progress/<int:exercise_id>/", exercise_progress),
     path("workout-stats/", workout_stats),
     path("weight-progress/", weight_progress),
 
+    # path("workout/save/", save_workout),
+
+    # STATIC
+    path("categories/", views.categories_list),
+    path("goals/", views.goals_list),
+
     # ROUTER
     path("", include(router.urls)),
-    path("workout/save/", save_workout),
-
-    # GOALS
-    path("categories/", views.categories_list),
-    path("goals/", views.goals_list)
 ]
