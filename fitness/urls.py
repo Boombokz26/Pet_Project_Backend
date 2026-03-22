@@ -15,50 +15,64 @@ from .views import (
     complete_set,
     uncomplete_set,
 
-    # exercise_progress,
+
     workout_stats,
     weight_progress,
 
     ExerciseViewSet,
-    # WeightHistoryViewSet,
+
     WorkoutPlanViewSet,
-    # save_workout
+    workout_history, exercise_progress,
+     one_rep_max,
+
 )
 
 router = DefaultRouter()
 router.register(r'exercises', ExerciseViewSet, basename='exercises')
-# router.register(r'weight-history', WeightHistoryViewSet, basename='weight-history')
+
 router.register(r'plans', WorkoutPlanViewSet, basename='plans')
 
 urlpatterns = [
 
-    # AUTH
-    path("register/", register),
-    path("login/", login),
-    path("token/refresh/", refresh_token),
 
-    # PROFILE
+    path("auth/register/", register),
+    path("auth/login/", login),
+    path("auth/refresh/", refresh_token),
+
+
     path("profile/", get_profile),
     path("profile/update/", update_profile),
 
-    # 🔥 WORKOUT FLOW (НОВЫЙ)
-    path("workout/start/<int:plan_id>/", start_workout_from_plan),
-    path("workout/finish/<int:session_id>/", finish_workout_session),
 
-    # CHECKLIST
-    path("workout/set/complete/<int:set_id>/", complete_set),
-    path("workout/set/uncomplete/<int:set_id>/", uncomplete_set),
+    path("sessions/start/<int:plan_id>/", start_workout_from_plan),
+    path("sessions/<int:session_id>/", views.get_workout_session),
+    path("sessions/active/", views.get_active_session),
+    path("sessions/<int:session_id>/finish/", finish_workout_session),
 
-    # path("exercise-progress/<int:exercise_id>/", exercise_progress),
-    path("workout-stats/", workout_stats),
-    path("weight-progress/", weight_progress),
 
-    # path("workout/save/", save_workout),
+    path("sets/<int:set_id>/complete/", complete_set),
+    path("sets/<int:set_id>/uncomplete/", uncomplete_set),
+    path("sets/<int:set_id>/update/", views.update_set),
 
-    # STATIC
+
+    path("stats/workouts/", workout_stats),
+    path("stats/weight/", weight_progress),
+
+    path("workouts/history/", workout_history),
+
+
     path("categories/", views.categories_list),
     path("goals/", views.goals_list),
 
-    # ROUTER
+
     path("", include(router.urls)),
+
+
+
+    path("stats/exercise/<int:exercise_id>/", exercise_progress),
+
+
+
+    path("stats/1rm/<int:exercise_id>/", one_rep_max),
+    path("analytics/", views.analytics)
 ]

@@ -190,6 +190,20 @@ class WorkoutSession(models.Model):
         on_delete=models.CASCADE,
         db_column="User_id"
     )
+    plan = models.ForeignKey(
+        WorkoutPlan,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        db_column="WorkoutPlan_plan_id",
+        related_name="sessions"
+    )
+
+    finished = models.BooleanField(default=False)
+
+    started_at = models.DateTimeField(auto_now_add=True,null=True)
+    finished_at = models.DateTimeField(null=True, blank=True)
+
 
     class Meta:
         db_table = "WorkoutSession"
