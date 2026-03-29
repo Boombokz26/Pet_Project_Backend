@@ -9,6 +9,10 @@ from rest_framework.exceptions import PermissionDenied, NotFound
 from rest_framework.viewsets import ModelViewSet
 from datetime import timedelta
 
+from django.db.models import Max, F, FloatField, Case, When
+from django.db.models.functions import TruncDate
+
+
 
 from .auth_jwt import create_access_token, create_refresh_token, decode_token, UsersJWTAuthentication
 from .permissions import IsJWTAuthenticated
@@ -19,7 +23,8 @@ from django.db.models.functions import TruncDate
 from .models import (
     Exercises, WorkoutPlan, UserWeightHistory,
     SessionExercisesSets, WorkoutSession,
-    SessionExercise, Goals, Categories, PlanExercise
+    SessionExercise, Goals, Categories, PlanExercise,
+    PlanExerciseSet
 )
 
 from .serializers import (
@@ -144,7 +149,10 @@ class WorkoutPlanViewSet(ModelViewSet):
             WorkoutPlan.objects
             .filter(Q(User_id=self.request.user) | Q(User_id__isnull=True))
             .annotate(exercises_count=Count("planexercise"))
-            .prefetch_related("planexercise_set__exercise_id")
+            .prefetch_related(
+                "planexercise_set__exercise_id",
+                "planexercise_set__plan_sets"
+            )
         )
 
     def perform_create(self, serializer):
@@ -154,12 +162,15 @@ class WorkoutPlanViewSet(ModelViewSet):
         if plan.User_id and plan.User_id != self.request.user:
             raise PermissionDenied()
 
+
     @action(detail=True, methods=["POST"])
     def add_exercise(self, request, pk=None):
         plan = self.get_object()
         self.check_owner(plan)
 
         exercise_id = request.data.get("exercise_id")
+        sets_data = request.data.get("sets")  # список подходов
+
         if not exercise_id:
             return Response({"error": "exercise_id required"}, status=400)
 
@@ -175,12 +186,30 @@ class WorkoutPlanViewSet(ModelViewSet):
         pe = PlanExercise.objects.create(
             plan_id=plan,
             exercise_id=exercise,
-            sets=request.data.get("sets", 3),
-            reps=request.data.get("reps", 10),
-            target_weight=request.data.get("target_weight", 0),
             order=order,
             day_of_week=request.data.get("day_of_week")
         )
+
+
+        if not sets_data:
+            sets_data = [
+                {"reps": 10, "weight": 0},
+                {"reps": 10, "weight": 0},
+                {"reps": 10, "weight": 0},
+            ]
+
+        PlanExerciseSet.objects.bulk_create([
+            PlanExerciseSet(
+                plan_exercise=pe,
+                set_number=i + 1,
+                reps=s.get("reps"),
+                weight=s.get("weight"),
+            )
+            for i, s in enumerate(sets_data)
+        ])
+
+        return Response({"plan_exercise_id": pe.id})
+
 
     @action(detail=True, methods=["POST"])
     def clone(self, request, pk=None):
@@ -196,24 +225,83 @@ class WorkoutPlanViewSet(ModelViewSet):
         exercises = PlanExercise.objects.filter(plan_id=plan)
 
         for ex in exercises:
-            PlanExercise.objects.create(
+            new_pe = PlanExercise.objects.create(
                 plan_id=new_plan,
                 exercise_id=ex.exercise_id,
                 day_of_week=ex.day_of_week,
-                sets=ex.sets,
-                reps=ex.reps,
-                target_weight=ex.target_weight,
                 order=ex.order
             )
+
+            sets = ex.plan_sets.all()
+
+            PlanExerciseSet.objects.bulk_create([
+                PlanExerciseSet(
+                    plan_exercise=new_pe,
+                    set_number=s.set_number,
+                    reps=s.reps,
+                    weight=s.weight
+                )
+                for s in sets
+            ])
 
         return Response({
             "message": "Plan cloned",
             "plan_id": new_plan.plan_id
         })
 
+    @action(detail=True, methods=["DELETE"])
+    def remove_exercise(self, request, pk=None):
 
-        return Response({"plan_exercise_id": pe.id})
+        plan = self.get_object()
+        self.check_owner(plan)
 
+        plan_exercise_id = request.data.get("plan_exercise_id")
+
+        pe = PlanExercise.objects.filter(
+            id=plan_exercise_id,
+            plan_id=plan
+        ).first()
+
+        if not pe:
+            raise NotFound()
+
+        pe.delete()
+
+        return Response({"message": "Deleted"})
+
+@api_view(["PATCH", "DELETE"])
+@permission_classes([IsJWTAuthenticated])
+def plan_set_detail(request, set_id):
+
+    s = PlanExerciseSet.objects.select_related(
+        "plan_exercise__plan_id"
+    ).filter(id=set_id).first()
+
+    if not s:
+        raise NotFound()
+
+    if s.plan_exercise.plan_id.User_id != request.user:
+        raise PermissionDenied()
+
+    if request.method == "PATCH":
+
+        if "reps" in request.data:
+            s.reps = request.data["reps"]
+
+        if "weight" in request.data:
+            s.weight = request.data["weight"]
+
+        if "duration_sec" in request.data:  # 🔥 ВОТ ЭТО ГЛАВНОЕ
+            s.duration_sec = request.data["duration_sec"]
+
+        s.save()
+
+        return Response({"message": "Set updated"})
+
+
+    if request.method == "DELETE":
+        s.delete()
+        return Response({"message": "Set deleted"})
 
 @api_view(["GET"])
 @permission_classes([IsJWTAuthenticated])
@@ -245,14 +333,21 @@ def workout_history(request):
             sets_data = []
 
             for s in sets:
+                volume = 0
+
                 if s.is_completed:
-                    volume = (s.weight or 0) * (s.reps or 0)
+                    if s.reps is not None:
+                        volume = (s.weight or 0) * s.reps
+                    elif hasattr(s, "duration_sec") and s.duration_sec is not None:
+                        volume = s.duration_sec
+
                     ex_volume += volume
                     sets_done += 1
 
                 sets_data.append({
                     "set_number": s.set_number,
                     "reps": s.reps,
+                    "duration_sec": getattr(s, "duration_sec", None),
                     "weight": s.weight,
                     "is_completed": s.is_completed,
                 })
@@ -261,6 +356,7 @@ def workout_history(request):
 
             exercises_data.append({
                 "name": ex.exercise_id.name,
+                "measure_type": getattr(ex.exercise_id, "measure_type", "reps"),
                 "volume": ex_volume,
                 "sets_done": sets_done,
                 "total_sets": sets.count(),
@@ -296,6 +392,7 @@ def start_workout_from_plan(request, plan_id):
 
         session = WorkoutSession.objects.create(
             User_id=request.user,
+            plan = plan,
             date=timezone.now(),
             duration_min=0,
             finished=False
@@ -309,17 +406,50 @@ def start_workout_from_plan(request, plan_id):
                 exercise_id=pe.exercise_id
             )
 
+            plan_sets = pe.plan_sets.all()
+
             SessionExercisesSets.objects.bulk_create([
                 SessionExercisesSets(
                     session_exercise_id=se,
-                    set_number=i + 1,
-                    reps=pe.reps,
-                    weight=pe.target_weight
+                    set_number=s.set_number,
+                    reps=s.reps,
+                    weight=s.weight
                 )
-                for i in range(pe.sets)
+                for s in plan_sets
             ])
 
     return Response({"session_id": session.session_id})
+
+
+
+
+
+@api_view(["POST"])
+@permission_classes([IsJWTAuthenticated])
+def add_plan_set(request, plan_exercise_id):
+
+    pe = PlanExercise.objects.filter(id=plan_exercise_id).first()
+
+    if not pe:
+        raise NotFound()
+
+    if pe.plan_id.User_id != request.user:
+        raise PermissionDenied()
+
+    last = PlanExerciseSet.objects.filter(
+        plan_exercise=pe
+    ).aggregate(Max("set_number"))["set_number__max"] or 0
+
+    new_set = PlanExerciseSet.objects.create(
+        plan_exercise=pe,
+        set_number=last + 1,
+        reps=request.data.get("reps", 10),
+        weight=request.data.get("weight", 0),
+    )
+
+    return Response({"set_id": new_set.id})
+
+
 
 
 @api_view(["PATCH"])
@@ -513,28 +643,41 @@ def categories_list(request):
 
 
 @api_view(["GET"])
+@authentication_classes([UsersJWTAuthentication])
 @permission_classes([IsJWTAuthenticated])
 def exercise_progress(request, exercise_id):
     user = request.user
 
-    data = SessionExercisesSets.objects.filter(
-        session_exercise_id__exercise_id=exercise_id,
-        session_exercise_id__session_id__User_id=user,
-        is_completed=True
-    ).annotate(
-        day=TruncDate("session_exercise_id__session_id__date")
-    ).values("day").annotate(
-        weight=Max("weight")
-    ).order_by("day")
+    queryset = (
+        SessionExercisesSets.objects
+        .filter(
+            session_exercise_id__exercise_id=exercise_id,
+            session_exercise_id__session_id__User_id=user,
+            session_exercise_id__session_id__finished=True,
+            is_completed=True
+        )
+        .annotate(
+            day=TruncDate("session_exercise_id__session_id__date"),
+        )
+        .values("day")
+        .annotate(
+            max_weight=Max("weight"),
+            max_duration=Max("duration_sec")
+        )
+        .order_by("day")
+    )
 
-    return Response([
-        {
-            "date": d["day"],
-            "weight": d["weight"]
-        }
-        for d in data if d["day"]
-    ])
+    result = []
 
+    for item in queryset:
+        value = item["max_weight"] or item["max_duration"] or 0
+
+        result.append({
+            "date": item["day"].strftime("%Y-%m-%d"),
+            "value": float(value)
+        })
+
+    return Response(result)
 
 @api_view(["GET"])
 @permission_classes([IsJWTAuthenticated])
@@ -596,13 +739,25 @@ def analytics(request):
     )["total"] or 0
 
     total_volume = sets.aggregate(
-        total=Sum(F("weight") * F("reps"))
+        total=Sum(
+            Case(
+                When(reps__isnull=False, then=F("weight") * F("reps")),
+                default=0,
+                output_field=FloatField()
+            )
+        )
     )["total"] or 0
 
     volume_data = sets.annotate(
         day=TruncDate("session_exercise_id__session_id__date")
     ).values("day").annotate(
-        value=Sum(F("weight") * F("reps"))
+        value=Sum(
+            Case(
+                When(reps__isnull=False, then=F("weight") * F("reps")),
+                default=0,
+                output_field=FloatField()
+            )
+        )
     ).order_by("day")
 
     duration_data = sessions.annotate(
@@ -620,10 +775,17 @@ def analytics(request):
     exercise_data = sets.values(
         "session_exercise_id__exercise_id__name"
     ).annotate(
-        value=Sum(F("weight") * F("reps"))
+        value=Sum(
+            Case(
+                When(reps__isnull=False, then=F("weight") * F("reps")),
+                default=0,
+                output_field=FloatField()
+            )
+        )
     ).order_by("-value")[:5]
 
-    prs = sets.values(
+    prs = sets.filter(weight__gt=0).values(
+        "session_exercise_id__exercise_id",
         "session_exercise_id__exercise_id__name"
     ).annotate(
         value=Max("weight")
@@ -632,15 +794,21 @@ def analytics(request):
     muscles_raw = sets.values(
         "session_exercise_id__exercise_id__category_id__name"
     ).annotate(
-        value=Sum(F("weight") * F("reps"))
+        value=Sum(
+            Case(
+                When(reps__isnull=False, then=F("weight") * F("reps")),
+                default=0,
+                output_field=FloatField()
+            )
+        )
     )
 
-    total_muscle = sum([m["value"] for m in muscles_raw]) or 1
+    total_muscle = sum([m["value"] or 0 for m in muscles_raw]) or 1
 
     muscles = [
         {
             "label": m["session_exercise_id__exercise_id__category_id__name"],
-            "value": round((m["value"] / total_muscle) * 100, 1)
+            "value": round(((m["value"] or 0) / total_muscle) * 100, 1)
         }
         for m in muscles_raw
     ]
@@ -663,20 +831,68 @@ def analytics(request):
         ],
 
         "frequency": [
-            {"label": d["day"].strftime("%a"), "value": d["value"]}
+            {"label": d["day"].strftime("%a"), "value": 1}  # 🔥 фикс
             for d in frequency_data if d["day"]
         ],
 
         "exercise_volume": [
-            {"label": d["session_exercise_id__exercise_id__name"], "value": d["value"]}
+            {"label": d["session_exercise_id__exercise_id__name"], "value": d["value"] or 0}
             for d in exercise_data
         ],
 
         "prs": [
-            {"exercise": d["session_exercise_id__exercise_id__name"], "max_weight": d["value"]}
+            {
+                "exercise_id": d["session_exercise_id__exercise_id"],
+                "exercise": d["session_exercise_id__exercise_id__name"],
+                "max_weight": d["value"]
+            }
             for d in prs
         ],
 
         "muscles": muscles
     })
 
+@api_view(["DELETE"])
+@permission_classes([IsJWTAuthenticated])
+def delete_session_set(request, set_id):
+
+    s = SessionExercisesSets.objects.filter(set_id=set_id).first()
+
+    if not s:
+        raise NotFound()
+
+    if s.session_exercise_id.session_id.User_id != request.user:
+        raise PermissionDenied()
+
+    s.delete()
+
+    return Response({"message": "Set deleted"})
+
+@api_view(["POST"])
+@permission_classes([IsJWTAuthenticated])
+def add_session_set(request, session_exercise_id):
+
+    se = SessionExercise.objects.filter(
+        session_exercise_id=session_exercise_id
+    ).first()
+
+    if not se:
+        raise NotFound()
+
+    if se.session_id.User_id != request.user:
+        raise PermissionDenied()
+
+    last = SessionExercisesSets.objects.filter(
+        session_exercise_id=se
+    ).aggregate(Max("set_number"))["set_number__max"] or 0
+
+    new_set = SessionExercisesSets.objects.create(
+        session_exercise_id=se,
+        set_number=last + 1,
+        reps=10,
+        weight=0,
+    )
+
+    return Response({
+        "set_id": new_set.set_id
+    })

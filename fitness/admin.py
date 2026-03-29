@@ -36,7 +36,7 @@ class ExercisesAdmin(admin.ModelAdmin):
 
 @admin.register(PlanExercise)
 class PlanExerciseAdmin(admin.ModelAdmin):
-    list_display = ("plan_id", "exercise_id", "day_of_week", "sets", "reps", "order")
+    list_display = ("plan_id", "exercise_id", "day_of_week", "order")
 
 class SessionExercisesSetsInline(admin.TabularInline):
     model = SessionExercisesSets

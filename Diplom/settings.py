@@ -65,7 +65,7 @@ WSGI_APPLICATION = 'Diplom.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
-        'NAME': 'fitness_app',
+        'NAME': 'diplom_db',
         'USER': 'root',
         'PASSWORD': 'm1990A1994sabit',
         'HOST': 'localhost',

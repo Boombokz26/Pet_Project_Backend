@@ -15,7 +15,7 @@ def create_access_token(user_id: int) -> str:
     payload = {
         "type": "access",
         "user_id": user_id,
-        "exp": _utcnow() + timedelta(minutes=30),
+        "exp": _utcnow() + timedelta(minutes = 30),
         "iat": _utcnow(),
     }
     return jwt.encode(payload, settings.SECRET_KEY, algorithm="HS256")
@@ -36,9 +36,10 @@ def decode_token(token: str) -> dict:
         return jwt.decode(
             token,
             settings.SECRET_KEY,
-            algorithms=["HS256"],
-            options={"verify_exp": False}  # временно отключаем проверку
+            algorithms=["HS256"]
         )
+    except jwt.ExpiredSignatureError:
+        raise AuthenticationFailed("Token expired")
     except jwt.InvalidTokenError:
         raise AuthenticationFailed("Invalid token")
 

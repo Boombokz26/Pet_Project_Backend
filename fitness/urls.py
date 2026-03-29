@@ -15,7 +15,6 @@ from .views import (
     complete_set,
     uncomplete_set,
 
-
     workout_stats,
     weight_progress,
 
@@ -23,7 +22,7 @@ from .views import (
 
     WorkoutPlanViewSet,
     workout_history, exercise_progress,
-     one_rep_max,
+    one_rep_max, add_session_set, delete_session_set,
 
 )
 
@@ -35,9 +34,9 @@ router.register(r'plans', WorkoutPlanViewSet, basename='plans')
 urlpatterns = [
 
 
-    path("auth/register/", register),
-    path("auth/login/", login),
-    path("auth/refresh/", refresh_token),
+    path("register/", register),
+    path("login/", login),
+    path("refresh/", refresh_token),
 
 
     path("profile/", get_profile),
@@ -53,6 +52,12 @@ urlpatterns = [
     path("sets/<int:set_id>/complete/", complete_set),
     path("sets/<int:set_id>/uncomplete/", uncomplete_set),
     path("sets/<int:set_id>/update/", views.update_set),
+
+    path("plan-sets/<int:set_id>/", views.plan_set_detail),
+    path("plan-exercises/<int:plan_exercise_id>/add_set/", views.add_plan_set),
+
+    path("session-sets/<int:session_exercise_id>/add/", add_session_set),
+    path("session-sets/<int:set_id>/delete/", delete_session_set),
 
 
     path("stats/workouts/", workout_stats),
@@ -70,7 +75,6 @@ urlpatterns = [
 
 
     path("stats/exercise/<int:exercise_id>/", exercise_progress),
-
 
 
     path("stats/1rm/<int:exercise_id>/", one_rep_max),

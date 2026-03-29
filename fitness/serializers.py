@@ -6,7 +6,7 @@ from django.db import transaction
 from .models import (
     Users, Exercises, PlanExercise, WorkoutPlan,
     UserWeightHistory, WorkoutSession,
-    SessionExercise, SessionExercisesSets, Goals
+    SessionExercise, SessionExercisesSets, Goals, PlanExerciseSet
 )
 
 
@@ -115,12 +115,39 @@ class ExerciseSerializer(serializers.ModelSerializer):
             "User_id"
         ]
 
+    extra_kwargs = {
+        "description": {"required": False},
+        "DifficultyLevel": {"required": False},
+        "category_id": {"required": False},
+        "User_id": {"read_only": True},
+    }
+
+class PlanExerciseSetSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = PlanExerciseSet
+        fields = ["id", "set_number", "reps", "weight", "duration_sec"]
 
 
 
 class PlanExerciseSerializer(serializers.ModelSerializer):
+
     plan_exercise_id = serializers.IntegerField(source="id", read_only=True)
-    exercise_name = serializers.CharField(source="exercise_id.name", read_only=True)
+
+    exercise_name = serializers.CharField(
+        source="exercise_id.name",
+        read_only=True
+    )
+
+    measure_type = serializers.CharField(
+        source="exercise_id.measure_type",
+        read_only=True
+    )
+
+    sets = PlanExerciseSetSerializer(
+        source="plan_sets",
+        many=True,
+        read_only=True
+    )
 
     class Meta:
         model = PlanExercise
@@ -128,9 +155,8 @@ class PlanExerciseSerializer(serializers.ModelSerializer):
             "plan_exercise_id",
             "exercise_id",
             "exercise_name",
+            "measure_type",
             "sets",
-            "reps",
-            "target_weight",
             "order"
         ]
 
@@ -194,6 +220,9 @@ class WorkoutSessionSerializer(serializers.ModelSerializer):
         read_only=True
     )
 
+    plan_id = serializers.IntegerField(source="plan.plan_id", read_only=True)
+    plan_name = serializers.CharField(source="plan.name", read_only=True)
+
     class Meta:
         model = WorkoutSession
         fields = [
@@ -201,6 +230,8 @@ class WorkoutSessionSerializer(serializers.ModelSerializer):
             "date",
             "duration_min",
             "notes",
+            "plan_id",
+            "plan_name",
             "exercises"
         ]
 

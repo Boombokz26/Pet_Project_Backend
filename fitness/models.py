@@ -5,7 +5,7 @@ class Users(models.Model):
     email = models.CharField(max_length=255,unique=True)
     password_hash = models.CharField(max_length=255)
     name = models.CharField(max_length=255)
-    signup_date = models.DateField()
+    signup_date = models.DateField(auto_now_add=True)
     height = models.DecimalField(max_digits=10, decimal_places=2)
     goal = models.ForeignKey(
         "Goals",
@@ -71,6 +71,17 @@ class Exercises(models.Model):
     name = models.CharField(max_length=255)
     description = models.CharField(max_length=255)
     image_url = models.CharField(max_length=255)
+
+    MEASURE_CHOICES = [
+        ("reps", "Reps"),
+        ("time", "Time"),
+    ]
+
+    measure_type = models.CharField(
+        max_length=10,
+        choices=MEASURE_CHOICES,
+        default="reps"
+    )
     goals = models.ManyToManyField(
         "Goals",
         through="ExercisesGoals",
@@ -172,9 +183,6 @@ class PlanExercise(models.Model):
     )
 
     day_of_week = models.CharField(max_length=30,null=True,blank=True)
-    sets = models.IntegerField()
-    reps = models.IntegerField()
-    target_weight = models.DecimalField(max_digits=10, decimal_places=2)
     order = models.IntegerField()
 
     class Meta:
@@ -236,9 +244,37 @@ class SessionExercisesSets(models.Model):
         db_column="session_exercise_id"
     )
     set_number = models.IntegerField()
-    reps = models.IntegerField()
+    reps = models.IntegerField(null=True, blank=True)
+    duration_sec = models.IntegerField(null=True, blank=True)
     weight = models.DecimalField(max_digits=10, decimal_places=2)
     is_completed = models.BooleanField(default=False)
 
     class Meta:
         db_table = "SessionExercisesSets"
+
+
+
+class PlanExerciseSet(models.Model):
+    id = models.AutoField(primary_key=True)
+
+    plan_exercise = models.ForeignKey(
+        PlanExercise,
+        on_delete=models.CASCADE,
+        related_name="plan_sets"
+    )
+
+    set_number = models.IntegerField()
+
+    reps = models.IntegerField(null=True, blank=True)
+    duration_sec = models.IntegerField(null=True, blank=True)
+
+    weight = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        null=True,
+        blank=True
+    )
+
+    class Meta:
+        db_table = "PlanExerciseSet"
+        ordering = ["set_number"]
