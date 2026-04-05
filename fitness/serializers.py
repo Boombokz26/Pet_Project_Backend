@@ -6,7 +6,7 @@ from django.db import transaction
 from .models import (
     Users, Exercises, PlanExercise, WorkoutPlan,
     UserWeightHistory, WorkoutSession,
-    SessionExercise, SessionExercisesSets, Goals, PlanExerciseSet
+    SessionExercise, SessionExercisesSets,PlanExerciseSet
 )
 
 
@@ -64,7 +64,7 @@ class LoginSerializer(serializers.Serializer):
 
 class UserSerializer(serializers.ModelSerializer):
     weight = serializers.SerializerMethodField()
-    goal = serializers.CharField(source="goal.name")
+    goal = serializers.CharField(source="goal.name", default=None)
 
     class Meta:
         model = Users
@@ -81,9 +81,11 @@ class UserSerializer(serializers.ModelSerializer):
 
 
 class ProfileUpdateSerializer(serializers.ModelSerializer):
+    goal_id = serializers.IntegerField(required=False)
+
     class Meta:
         model = Users
-        fields = ["height"]
+        fields = ["height", "goal_id"]
 
     def validate_height(self, value):
         if value <= 0:
@@ -101,6 +103,12 @@ class ExerciseSerializer(serializers.ModelSerializer):
         read_only=True,
         slug_field="name"
     )
+    equipment = serializers.SlugRelatedField(
+        many=True,
+        read_only=True,
+        slug_field="name"
+    )
+
 
     class Meta:
         model = Exercises
@@ -112,6 +120,7 @@ class ExerciseSerializer(serializers.ModelSerializer):
             "category_id",
             "category_name",
             "goals",
+            "equipment",
             "User_id"
         ]
 

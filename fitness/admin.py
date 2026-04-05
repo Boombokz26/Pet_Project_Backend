@@ -1,5 +1,5 @@
 from .models import (
-    Users, Categories, Goals, Exercises, ExercisesGoals, WorkoutPlan, PlanExercise, WorkoutSession, WorkoutSession,
+    Users, Categories, Goals, Exercises, ExercisesGoals, WorkoutPlan, PlanExercise,WorkoutSession,
     SessionExercise, SessionExercisesSets,
 
 )

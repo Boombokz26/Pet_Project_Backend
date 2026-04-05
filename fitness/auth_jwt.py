@@ -39,43 +39,24 @@ def decode_token(token: str) -> dict:
             algorithms=["HS256"]
         )
     except jwt.ExpiredSignatureError:
+        print(token)
         raise AuthenticationFailed("Token expired")
     except jwt.InvalidTokenError:
         raise AuthenticationFailed("Invalid token")
 
 
 class UsersJWTAuthentication(BaseAuthentication):
-
     def authenticate(self, request):
-
-        print("HEADERS:", request.headers)
-
         auth = request.headers.get("Authorization", "")
-        print("AUTH HEADER:", auth)
-
         if not auth.startswith("Bearer "):
-            print("NO BEARER")
             return None
-
         token = auth.split(" ", 1)[1].strip()
-        print("TOKEN:", token)
-
+        print(token)
         payload = decode_token(token)
-        print("PAYLOAD:", payload)
-
         if payload.get("type") != "access":
-            print("NOT ACCESS TOKEN")
             raise AuthenticationFailed("Access token required")
-
         user_id = payload.get("user_id")
-        print("USER_ID:", user_id)
-
         user = Users.objects.filter(id=user_id).first()
-        print("USER:", user)
-
         if not user:
             raise AuthenticationFailed("User not found")
-
-        print("AUTH SUCCESS")
-
         return (user, None)

@@ -9,8 +9,7 @@ from rest_framework.exceptions import PermissionDenied, NotFound
 from rest_framework.viewsets import ModelViewSet
 from datetime import timedelta
 
-from django.db.models import Max, F, FloatField, Case, When
-from django.db.models.functions import TruncDate
+from django.db.models import FloatField, Case, When,Min
 
 
 
@@ -83,7 +82,6 @@ def refresh_token(request):
 
 
 @api_view(["GET"])
-@authentication_classes([UsersJWTAuthentication])
 @permission_classes([IsJWTAuthenticated])
 def get_profile(request):
     return Response(UserSerializer(request.user).data)
@@ -117,7 +115,7 @@ class ExerciseViewSet(ModelViewSet):
             Exercises.objects
             .filter(Q(User_id__isnull=True) | Q(User_id=self.request.user))
             .select_related("category_id")
-            .prefetch_related("goals")
+            .prefetch_related("goals", "equipment")
             .order_by("name")
         )
 
@@ -169,7 +167,7 @@ class WorkoutPlanViewSet(ModelViewSet):
         self.check_owner(plan)
 
         exercise_id = request.data.get("exercise_id")
-        sets_data = request.data.get("sets")  # список подходов
+        sets_data = request.data.get("sets")
 
         if not exercise_id:
             return Response({"error": "exercise_id required"}, status=400)
@@ -291,7 +289,7 @@ def plan_set_detail(request, set_id):
         if "weight" in request.data:
             s.weight = request.data["weight"]
 
-        if "duration_sec" in request.data:  # 🔥 ВОТ ЭТО ГЛАВНОЕ
+        if "duration_sec" in request.data:
             s.duration_sec = request.data["duration_sec"]
 
         s.save()
@@ -831,7 +829,10 @@ def analytics(request):
         ],
 
         "frequency": [
-            {"label": d["day"].strftime("%a"), "value": 1}  # 🔥 фикс
+            {
+                "label": d["day"].strftime("%Y-%m-%d"),
+                "value": d["value"] or 0
+            }
             for d in frequency_data if d["day"]
         ],
 
@@ -848,7 +849,6 @@ def analytics(request):
             }
             for d in prs
         ],
-
         "muscles": muscles
     })
 
@@ -895,4 +895,75 @@ def add_session_set(request, session_exercise_id):
 
     return Response({
         "set_id": new_set.set_id
+    })
+
+@api_view(["POST"])
+@permission_classes([IsJWTAuthenticated])
+def add_weight(request):
+    weight = request.data.get("weight")
+
+    if not weight:
+        return Response({"error": "weight required"}, status=400)
+
+    entry = UserWeightHistory.objects.create(
+        Users_id=request.user,
+        weight=weight,
+        measured_at=timezone.now().date()
+    )
+
+    return Response({
+        "message": "Weight added",
+        "weight": entry.weight,
+        "date": entry.measured_at
+    })
+
+
+@api_view(["GET"])
+@permission_classes([IsJWTAuthenticated])
+def weight_analytics(request):
+    user = request.user
+    period = request.GET.get("period", "30d")
+
+    now = timezone.now()
+
+    if period == "7d":
+        start = now - timedelta(days=7)
+    elif period == "30d":
+        start = now - timedelta(days=30)
+    else:
+        start = now - timedelta(days=90)
+
+    weights = (
+        UserWeightHistory.objects
+        .filter(Users_id=user, measured_at__gte=start)
+        .values("measured_at")
+        .annotate(weight=Max("weight"))
+        .order_by("measured_at")
+    )
+
+    data = [
+        {
+            "label": w["measured_at"].strftime("%d %b"),
+            "value": float(w["weight"])
+        }
+        for w in weights
+    ]
+
+    first = weights.first()
+    last = weights.last()
+
+    change = 0
+    if first and last:
+        change = float(last["weight"]) - float(first["weight"])
+
+    min_w = weights.aggregate(Min("weight"))["weight__min"]
+    max_w = weights.aggregate(Max("weight"))["weight__max"]
+
+    return Response({
+        "data": data,
+        "change": round(change, 2),
+        "min": float(min_w) if min_w else 0,
+        "max": float(max_w) if max_w else 0,
+        "start": start.date(),
+        "end": now.date()
     })

@@ -39,7 +39,7 @@ class WorkoutPlan(models.Model):
     name = models.CharField(max_length=255)
     description = models.CharField(max_length=255,blank=True,null=True)
     created_at = models.DateField(null=True, blank=True)
-    is_active = models.BooleanField(default=False)  # TINYINT
+    is_active = models.BooleanField(default=False)
 
     User_id = models.ForeignKey(
         Users,
@@ -85,6 +85,11 @@ class Exercises(models.Model):
     goals = models.ManyToManyField(
         "Goals",
         through="ExercisesGoals",
+        related_name="exercises"
+    )
+    equipment = models.ManyToManyField(
+        "Equipment",
+        through="ExerciseEquipment",
         related_name="exercises"
     )
     User_id = models.ForeignKey(
