@@ -65,11 +65,11 @@ WSGI_APPLICATION = 'Diplom.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
-        'NAME': 'diplom_db',
+        'NAME': 'railway',
         'USER': 'root',
-        'PASSWORD': 'm1990A1994sabit',
-        'HOST': 'localhost',
-        'PORT': '3306',
+        'PASSWORD': 'QSXAFprXKKsTCBBhaQxeNZAidpNWThLb',
+        'HOST': 'junction.proxy.rlwy.net',
+        'PORT': '58310',
     }
 }
 

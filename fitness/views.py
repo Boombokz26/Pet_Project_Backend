@@ -612,7 +612,69 @@ def weight_progress(request):
     ).order_by("measured_at")
 
     return Response([
-        {"date": w.measured_at, "weight": w.weight}
+        {
+            "id": w.id,
+            "date": w.measured_at,
+            "weight": w.weight
+        }
+        for w in weights
+    ])
+
+
+@api_view(["PATCH"])
+@permission_classes([IsJWTAuthenticated])
+def update_weight(request, weight_id):
+
+    w = UserWeightHistory.objects.filter(id=weight_id).first()
+
+    if not w:
+        raise NotFound()
+
+    if w.Users_id != request.user:
+        raise PermissionDenied()
+
+    if "weight" in request.data:
+        w.weight = request.data["weight"]
+
+    if "date" in request.data:
+        w.measured_at = request.data["date"]
+
+    w.save()
+
+    return Response({"message": "Weight updated"})
+
+
+
+@api_view(["DELETE"])
+@permission_classes([IsJWTAuthenticated])
+def delete_weight(request, weight_id):
+
+    w = UserWeightHistory.objects.filter(id=weight_id).first()
+
+    if not w:
+        raise NotFound()
+
+    if w.Users_id != request.user:
+        raise PermissionDenied()
+
+    w.delete()
+
+    return Response({"message": "Weight deleted"})
+
+
+@api_view(["GET"])
+@permission_classes([IsJWTAuthenticated])
+def weight_list(request):
+    weights = UserWeightHistory.objects.filter(
+        Users_id=request.user
+    ).order_by("-measured_at")
+
+    return Response([
+        {
+            "id": w.id,
+            "weight": w.weight,
+            "date": w.measured_at
+        }
         for w in weights
     ])
 

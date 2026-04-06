@@ -18,7 +18,7 @@ class Users(models.Model):
         return f"{self.id} - {self.name} ({self.email})"
 
     class Meta:
-        db_table = "Users"
+        db_table = 'users'
 
 class UserWeightHistory(models.Model):
     id = models.AutoField(primary_key=True)
@@ -32,7 +32,7 @@ class UserWeightHistory(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        db_table = "UserWeightHistory"
+        db_table = "userweighthistory"
 
 class WorkoutPlan(models.Model):
     plan_id = models.AutoField(primary_key=True)
@@ -63,7 +63,7 @@ class WorkoutPlan(models.Model):
     )
 
     class Meta:
-        db_table = "WorkoutPlan"
+        db_table = "workoutplan"
 
 
 class Exercises(models.Model):
@@ -112,7 +112,7 @@ class Exercises(models.Model):
         return f"{self.exercise_id}- {self.User_id} - {self.name}"
 
     class Meta:
-        db_table = "Exercises"
+        db_table = "exercises"
 
 class Categories(models.Model):
     category_id = models.AutoField(primary_key=True)
@@ -123,7 +123,7 @@ class Categories(models.Model):
         return f"{self.category_id} - {self.name}"
 
     class Meta:
-        db_table = "Categories"
+        db_table = "categories"
 
 class Goals(models.Model):
     goal_id = models.AutoField(primary_key=True)
@@ -133,7 +133,7 @@ class Goals(models.Model):
         return f"{self.goal_id} - {self.name}"
 
     class Meta:
-        db_table = "Goals"
+        db_table = "goals"
 
 class ExercisesGoals(models.Model):
     Exercises_exercise_id = models.ForeignKey(
@@ -148,7 +148,7 @@ class ExercisesGoals(models.Model):
     )
 
     class Meta:
-        db_table = "ExercisesGoals"
+        db_table = "exercisesgoals"
         unique_together = ("Exercises_exercise_id", "Goals_goal_id")
 
 class Equipment(models.Model):
@@ -157,7 +157,7 @@ class Equipment(models.Model):
     description = models.CharField(max_length=255)
 
     class Meta:
-        db_table = "Equipment"
+        db_table = "equipment"
 
 class ExerciseEquipment(models.Model):
     exercise_id = models.ForeignKey(
@@ -172,7 +172,7 @@ class ExerciseEquipment(models.Model):
     )
 
     class Meta:
-        db_table = "ExerciseEquipment"
+        db_table = "exerciseequipment"
         unique_together = ("exercise_id", "equipment_id")
 
 class PlanExercise(models.Model):
@@ -191,7 +191,7 @@ class PlanExercise(models.Model):
     order = models.IntegerField()
 
     class Meta:
-        db_table = "PlanExercise"
+        db_table = "planexercise"
 
 class WorkoutSession(models.Model):
     session_id = models.AutoField(primary_key=True)
@@ -219,7 +219,7 @@ class WorkoutSession(models.Model):
 
 
     class Meta:
-        db_table = "WorkoutSession"
+        db_table = "workoutsession"
 
 class SessionExercise(models.Model):
     session_id = models.ForeignKey(
@@ -237,7 +237,7 @@ class SessionExercise(models.Model):
     is_completed = models.BooleanField(default=False)
 
     class Meta:
-        db_table = "SessionExercise"
+        db_table = "sessionexercise"
 
 
 
@@ -255,7 +255,7 @@ class SessionExercisesSets(models.Model):
     is_completed = models.BooleanField(default=False)
 
     class Meta:
-        db_table = "SessionExercisesSets"
+        db_table = "sessionexercisessets"
 
 
 
@@ -281,5 +281,5 @@ class PlanExerciseSet(models.Model):
     )
 
     class Meta:
-        db_table = "PlanExerciseSet"
+        db_table = "planexerciseset"
         ordering = ["set_number"]

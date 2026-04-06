@@ -22,7 +22,8 @@ from .views import (
 
     WorkoutPlanViewSet,
     workout_history, exercise_progress,
-    one_rep_max, add_session_set, delete_session_set, add_weight, weight_analytics,
+    one_rep_max, add_session_set, delete_session_set, add_weight, weight_analytics, weight_list, update_weight,
+    delete_weight,
 
 )
 
@@ -73,7 +74,9 @@ urlpatterns = [
     path("", include(router.urls)),
 
     path("weight/add/", add_weight),
-
+path("weight/", weight_list),
+path("weight/<int:weight_id>/", update_weight),
+path("weight/<int:weight_id>/delete/", delete_weight),
     path("stats/exercise/<int:exercise_id>/", exercise_progress),
 
 
